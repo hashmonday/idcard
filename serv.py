@@ -4,6 +4,7 @@
 
 from flask import Flask, Response
 from flask_cors import CORS
+from flask import jsonify
 from smartcard.CardConnection import CardConnection
 from smartcard.CardType import AnyCardType
 from smartcard.CardRequest import CardRequest
@@ -216,16 +217,11 @@ def get_status():
     cardrequest = CardRequest(timeout=1, cardType=cardtype)
     try:
         cardservice = cardrequest.waitforcard()
+        cardservice.connection.connect()
     except:
-        resultdict = {
-            'status': 'inactive'
-        }
-        return json.dumps(resultdict)
+        return jsonify(status='inactive')
 
-    resultdict = {
-        'status': 'active'
-    }
-    return Response(json.dumps(resultdict), mimetype='application/json')
+    return jsonify(status='active')
 
 
 # Start get_data
@@ -236,13 +232,9 @@ def get_data():
 
     try:
         cardservice = cardrequest.waitforcard()
+        cardservice.connection.connect()
     except:
-        resultdict = {
-            'status': 'inactive'
-        }
-        return json.dumps(resultdict)
-
-    stat = cardservice.connection.connect()
+        return jsonify(status='inactive')
 
     REQ_CID = [0x80, 0xb0, 0x00, 0x04, 0x02, 0x00, 0x0d]
     REQ_THAI_NAME = [0x80, 0xb0, 0x00, 0x11, 0x02, 0x00, 0x64]
@@ -271,17 +263,18 @@ def get_data():
                 result = result + tis620encoding[i]
             resultlist.append(result)
 
-    resultdict = {
-        'status': 'active',
-        'idnumber': resultlist[0],
-        'thainame': resultlist[1],
-        'englishname': resultlist[2],
-        'gender': resultlist[3],
-        'dob': resultlist[4],
-        'address': resultlist[5],
-        'issueexpire': resultlist[6]
-    }
-    return Response(json.dumps(resultdict), mimetype='application/json')
+    return jsonify(status='active',
+                   cid=resultlist[0].strip(),
+                   title_th=resultlist[1].strip().split("#")[0],
+                   first_name_th=resultlist[1].strip().split("#")[1],
+                   last_name_th=resultlist[1].strip().split("#")[3],
+                   title_en=resultlist[2].strip().split("#")[0],
+                   first_name_en=resultlist[2].strip().split("#")[1],
+                   last_name_en=resultlist[2].strip().split("#")[3],
+                   gender=resultlist[3].strip(),
+                   dob=resultlist[4].strip(),
+                   address=resultlist[5].strip(),
+                   issueexpire=resultlist[6].strip())
 # End get_data
 
 # Start get_photo
@@ -294,13 +287,9 @@ def get_photo_byte():
 
     try:
         cardservice = cardrequest.waitforcard()
+        cardservice.connection.connect()
     except:
-        resultdict = {
-            'status': 'inactive'
-        }
-        return json.dumps(resultdict)
-
-    cardservice.connection.connect()
+        return jsonify(status='inactive')
 
     REQ_PHOTO_P1 = [0x80, 0xB0, 0x01, 0x7B, 0x02, 0x00, 0xFF]
     REQ_PHOTO_P2 = [0x80, 0xB0, 0x02, 0x7A, 0x02, 0x00, 0xFF]
@@ -379,7 +368,6 @@ def get_photo_json():
              REQ_PHOTO_P6, REQ_PHOTO_P7, REQ_PHOTO_P8, REQ_PHOTO_P9, REQ_PHOTO_P10, REQ_PHOTO_P11, REQ_PHOTO_P12, REQ_PHOTO_P13, REQ_PHOTO_P14, REQ_PHOTO_P15, REQ_PHOTO_P16, REQ_PHOTO_P17,
              REQ_PHOTO_P18, REQ_PHOTO_P19, REQ_PHOTO_P20]
 
-    resultdict = dict()
     photobytearray = list()
 
     apdu = SELECT+THAI_ID_CARD
@@ -395,10 +383,6 @@ def get_photo_json():
             for i in response:
                 photobytearray.append(i)
 
-    resultdict = {
-        'status': 'active',
-        'photo': photobytearray
-    }
-
-    return Response(json.dumps(resultdict), mimetype='application/json')
+    return jsonify(status='active',
+                   photo=photobytearray)
 # End get_photo
